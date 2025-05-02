@@ -74,7 +74,7 @@ const TabLayout = () => {
           <Tabs.Screen
             name="community"
             options={{
-              title: "커뮤니티",
+              title: "식물 이야기",
               tabBarIcon: () => (
                 <MaterialIcons name="wechat" size={24} color="black" />
               ),
@@ -84,7 +84,7 @@ const TabLayout = () => {
           <Tabs.Screen
             name="follow"
             options={{
-              title: "팔로우",
+              title: "마이 페이지",
               tabBarIcon: () => (
                 <SimpleLineIcons name="user-follow" size={24} color="black" />
               ),

@@ -47,6 +47,20 @@ export const insertReply = async (replyData) => {
   return response.data;
 };
 
+//댓글 삭제
+
+export const deleteReply = (commentId) => {
+  const response = axiosInstance.delete(`/plantReplies/${commentId}`);
+  return response;
+};
+
+//댓글 수정
+
+export const updateRelpy = (commentId) => {
+
+}
+
+
 // 게시글 당 댓글 조회
 export const replyList = async (boardNum) => {
   const response = await axiosInstance.get(`/plantReplies/${boardNum}`);

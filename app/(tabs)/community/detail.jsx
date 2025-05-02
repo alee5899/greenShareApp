@@ -17,6 +17,7 @@ import {
   deleteStories,
   insertReply,
   replyList,
+  deleteReply,
 } from "../../../apis/plantStory";
 import RenderHtml from "react-native-render-html";
 import * as SecureStore from "expo-secure-store";
@@ -27,6 +28,7 @@ import {
   getUserRoleFromToken,
 } from "../../../redux/authHelper";
 import dayjs from "dayjs";
+import { axiosInstance } from "../../../apis/axiosInstance";
 
 const DetailScreen = () => {
   const { boardNum } = useLocalSearchParams();
@@ -38,6 +40,9 @@ const DetailScreen = () => {
   const [replyInfo, setReplyInfo] = useState({});
   const [reloadTrigger, setReloadTrigger] = useState(false);
   const [replies, setReplies] = useState([]);
+
+  const [editMode, setEditMode] = useState(null);
+  const [editContent, setEditContent] = useState("");
 
   const token = useSelector((state) => state.auth.token);
   const myEmail = getUserSubFromToken(token);
@@ -55,7 +60,6 @@ const DetailScreen = () => {
           const response = await getDetailStories(Number(boardNum));
           setDetailData(response.data);
         } catch (error) {
-          console.error("상세 조회 실패:", error);
           Alert.alert("오류", "게시글을 가져오는 데 실패했습니다.");
         } finally {
           setLoading(false);
@@ -69,13 +73,11 @@ const DetailScreen = () => {
     try {
       const res = await insertReply(replyData);
       const newToken = res.headers?.authorization;
-      if (newToken) {
-        await SecureStore.setItemAsync("accessToken", newToken);
-      }
+      if (newToken) await SecureStore.setItemAsync("accessToken", newToken);
       Alert.alert("성공", "댓글이 등록되었습니다.");
+      setReplyInfo({});
       setReloadTrigger((prev) => !prev);
     } catch (error) {
-      console.error("댓글 등록 오류:", error);
       Alert.alert("오류", "댓글 등록에 실패했습니다.");
     }
   };
@@ -90,7 +92,6 @@ const DetailScreen = () => {
           console.error("댓글 불러오기 실패:", err);
         }
       };
-
       if (boardNum) fetchReplies();
     }, [boardNum, reloadTrigger])
   );
@@ -106,8 +107,7 @@ const DetailScreen = () => {
             await deleteStories(Number(boardNum));
             Alert.alert("삭제 완료", "게시글이 삭제되었습니다.");
             router.back();
-          } catch (error) {
-            console.error("삭제 실패:", error);
+          } catch {
             Alert.alert("삭제 실패", "게시글 삭제 중 오류가 발생했습니다.");
           }
         },
@@ -115,8 +115,61 @@ const DetailScreen = () => {
     ]);
   };
 
-  const handleEdit = () => {
-    router.push(`/community/edit/${boardNum}`);
+  const handleConfirmDeleteReply = (commentId) => {
+    Alert.alert("댓글 삭제", "정말 삭제하시겠습니까?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: () => {
+          deleteReply(commentId)
+            .then(() => {
+              Alert.alert("삭제 완료", "댓글이 삭제되었습니다.");
+              setReloadTrigger((prev) => !prev);
+            })
+            .catch(() => {
+              Alert.alert("삭제 실패", "댓글 삭제 중 오류가 발생했습니다.");
+            });
+        },
+      },
+    ]);
+  };
+
+  const handleEditReply = (item) => {
+    setEditMode(item.commentId);
+    setEditContent(item.content);
+  };
+
+  const handleSaveEditedReply = (commentId) => {
+    Alert.alert("댓글 수정", "정말 수정하시겠습니까?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "수정",
+        style: "default",
+        onPress: () => {
+          axiosInstance
+            .put(
+              `/plantReplies/${commentId}`,
+              {
+                content: editContent,
+                boardNum: Number(boardNum),
+              },
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            )
+            .then(() => {
+              Alert.alert("성공", "댓글이 수정되었습니다.");
+              setEditMode(null);
+              setEditContent("");
+              setReloadTrigger((prev) => !prev);
+            })
+            .catch(() => {
+              Alert.alert("실패", "댓글 수정 중 오류가 발생했습니다.");
+            });
+        },
+      },
+    ]);
   };
 
   const customRenderers = {
@@ -148,20 +201,14 @@ const DetailScreen = () => {
     );
   }
 
-  if (!detailData) {
-    return (
-      <View style={styles.center}>
-        <Text>데이터를 불러오지 못했습니다.</Text>
-      </View>
-    );
-  }
-
   const headerComponent = (
     <View style={styles.card}>
       <Text style={styles.title}>{detailData.title || "제목 없음"}</Text>
       <View style={styles.metaInfo}>
         <Text style={styles.metaText}>작성자: {detailData.userEmail}</Text>
-        <Text style={styles.metaText}>등록일: {dayjs(detailData.regDate).format('YYYY-MM-DD')}</Text>
+        <Text style={styles.metaText}>
+          등록일: {dayjs(detailData.regDate).format("YYYY-MM-DD")}
+        </Text>
         <Text style={styles.metaText}>조회수: {detailData.readCnt ?? "0"}</Text>
       </View>
       <View style={styles.contentArea}>
@@ -178,14 +225,21 @@ const DetailScreen = () => {
       <View style={styles.commentInputContainer}>
         <TextInput
           placeholder="댓글을 입력하세요"
-          value={replyInfo.content}
+          value={replyInfo.content || ""}
           onChangeText={(text) =>
-            setReplyInfo({ ...replyInfo, content: text, boardNum: Number(boardNum) })
+            setReplyInfo({
+              ...replyInfo,
+              content: text,
+              boardNum: Number(boardNum),
+            })
           }
           style={styles.commentInput}
           multiline
         />
-        <Pressable style={styles.commentButton} onPress={() => reply(replyInfo)}>
+        <Pressable
+          style={styles.commentButton}
+          onPress={() => reply(replyInfo)}
+        >
           <Text style={styles.commentButtonText}>댓글 등록</Text>
         </Pressable>
       </View>
@@ -194,7 +248,10 @@ const DetailScreen = () => {
 
   const footerComponent = isMyPost && (
     <View style={styles.buttonGroup}>
-      <Pressable style={styles.editBtn} onPress={handleEdit}>
+      <Pressable
+        style={styles.editBtn}
+        onPress={() => router.push(`/community/edit/${boardNum}`)}
+      >
         <Text style={styles.btnText}>수정하기</Text>
       </Pressable>
       <Pressable style={styles.deleteBtn} onPress={handleDelete}>
@@ -209,14 +266,65 @@ const DetailScreen = () => {
       data={replies}
       ListHeaderComponent={headerComponent}
       ListFooterComponent={footerComponent}
-      keyExtractor={(item, index) => item.replyNum?.toString() ?? index.toString()}
+      keyExtractor={(item, index) =>
+        item.replyNum?.toString() ?? index.toString()
+      }
       renderItem={({ item }) => (
         <View style={styles.commentCard}>
           <View style={styles.commentHeader}>
             <Text style={styles.commentUser}>{item.userEmail || "익명"}</Text>
-            <Text style={styles.commentDate}>{dayjs(item.regDate).format("YYYY-MM-DD")}</Text>
+            <Text style={styles.commentDate}>
+              {dayjs(item.regDate).format("YYYY-MM-DD")}
+            </Text>
           </View>
-          <Text style={styles.commentContent}>{item.content}</Text>
+          {editMode === item.commentId ? (
+            <>
+              <TextInput
+                value={editContent}
+                onChangeText={setEditContent}
+                multiline
+                style={[styles.commentInput, { marginTop: 8 }]}
+              />
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "flex-end",
+                  marginTop: 4,
+                }}
+              >
+                <Pressable onPress={() => setEditMode(null)}>
+                  <Text style={{ marginRight: 16, color: "#999" }}>취소</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleSaveEditedReply(item.commentId)}
+                >
+                  <Text style={{ color: "#3DA66E" }}>저장</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.commentContent}>{item.content}</Text>
+          )}
+          {(item.userEmail === myEmail || myRole === "ROLE_ADMIN") && (
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                marginTop: 6,
+              }}
+            >
+              <Pressable
+                onPress={() => handleConfirmDeleteReply(item.commentId)}
+              >
+                <Text style={{ color: "#EF5350", marginRight: 12 }}>
+                  댓글 삭제
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => handleEditReply(item)}>
+                <Text style={{ color: "#3DA66E" }}>댓글 수정</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       )}
       ListEmptyComponent={
@@ -228,11 +336,10 @@ const DetailScreen = () => {
 
 export default DetailScreen;
 
-
 const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
-    backgroundColor: '#F1F8F4',
+    backgroundColor: "#F1F8F4",
   },
   center: {
     flex: 1,
@@ -305,12 +412,6 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 14,
-  },
-  commentTitle: {
-    fontSize: 17,
-    fontWeight: "bold",
-    marginBottom: 12,
-    color: "#2E6651",
   },
   commentCard: {
     backgroundColor: "#ffffff",

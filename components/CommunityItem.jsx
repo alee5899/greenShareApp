@@ -112,54 +112,54 @@
     };
 
     // 좋아요 토글 (클릭 시 상태 변경)
-    const handleLikeToggle = async (boardNum) => {
-      const token = await SecureStore.getItemAsync("accessToken");
-      if (!token) {
-        Toast.show({
-          type: "error",
-          position: "top",
-          text1: "로그인 필요",
-          text2: "좋아요를 눌르려면 로그인해야 합니다.",
-        });
-        return;
-      }
-    
-      try {
-        // 좋아요 취소 / 추가
-        if (isLiked) {
-          await deleteLike(boardNum); // 좋아요 취소 API
-          setIsLiked(false);
-          
-          // 좋아요 수 감소 처리
-          setSelectedItem(prevState => ({
-            ...prevState,
-            likeCnt: prevState.likeCnt - 1,
-          }));
-    
-        } else {
-          await insertLike(boardNum); // 좋아요 추가 API
-          setIsLiked(true);
-          
-          // 좋아요 수 증가 처리
-          setSelectedItem(prevState => ({
-            ...prevState,
-            likeCnt: prevState.likeCnt + 1,
-          }));
-        }
-    
-        // 애니메이션 처리 (여기서 하트 애니메이션을 추가)
-        setHeartAnimation(true);
-        setTimeout(() => setHeartAnimation(false), 1000); // 애니메이션 끝나면 상태 초기화
-      } catch (error) {
-        console.error("좋아요 처리 중 오류:", error);
-        Toast.show({
-          type: "error",
-          position: "top",
-          text1: "좋아요 처리 실패",
-          text2: "잠시 후 다시 시도해주세요.",
-        });
-      }
-    };
+const handleLikeToggle = async (boardNum) => {
+  const token = await SecureStore.getItemAsync("accessToken");
+  if (!token) {
+    Toast.show({
+      type: "error",
+      position: "top",
+      text1: "로그인 필요",
+      text2: "좋아요를 눌르려면 로그인해야 합니다.",
+    });
+    return;
+  }
+
+  try {
+    // 좋아요 취소 / 추가
+    if (isLiked) {
+      await deleteLike(boardNum); // 좋아요 취소 API
+      setIsLiked(false);
+      
+      // 좋아요 수 감소 처리
+      setSelectedItem(prevState => ({
+        ...prevState,
+        likeCnt: prevState.likeCnt - 1,
+      }));
+    } else {
+      await insertLike(boardNum); // 좋아요 추가 API
+      setIsLiked(true);
+      
+      // 좋아요 수 증가 처리
+      setSelectedItem(prevState => ({
+        ...prevState,
+        likeCnt: prevState.likeCnt + 1,
+      }));
+
+      // 좋아요가 추가될 때만 애니메이션 시작
+      setHeartAnimation(true);
+      setTimeout(() => setHeartAnimation(false), 1000); // 애니메이션 끝나면 상태 초기화
+    }
+  } catch (error) {
+    console.error("좋아요 처리 중 오류:", error);
+    Toast.show({
+      type: "error",
+      position: "top",
+      text1: "좋아요 처리 실패",
+      text2: "잠시 후 다시 시도해주세요.",
+    });
+  }
+};
+
 
     return (
       <View style={styles.item}>

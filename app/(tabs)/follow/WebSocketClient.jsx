@@ -58,7 +58,9 @@ const WebSocketClient = () => {
         sender /* 마지막으로 보낸 메세지가 내가 보낸 것인지 판단 */ &&
       lastMessage?.id !== prevLastId; /* 이 메시지가 새로 추가된 것인지 확인  */
 
-    if (isNewMessageFromSender && flatListRef.current) {
+    const isInitialRender = !prevLastId; /* 첫 렌더시 맨밑으로  */
+
+    if ((isNewMessageFromSender || isInitialRender) && flatListRef.current) {
       /* 마지막 메세지가 내가 보낸 것이고  flatList의 참조가 있으면*/
       setTimeout(() => {
         flatListRef.current.scrollToEnd({

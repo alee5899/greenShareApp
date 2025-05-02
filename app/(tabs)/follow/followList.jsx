@@ -8,29 +8,14 @@ import {
 } from "react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { follow, unfollowApi } from "../../../apis/memberApi";
-import * as SecureStore from "expo-secure-store";
 import MessageButton from "../../../components/MessageButton";
 import CustomText from "../../../components/common/CustomText";
 import { useFocusEffect } from "expo-router";
 
-const FollowList = () => {
+const FollowList = ({ userEmail }) => {
   const [followList, setFollowList] = useState([]);
 
-  const getUserEmailFromToken = async () => {
-    try {
-      const token = await SecureStore.getItemAsync("accessToken");
-      if (!token) return null;
-      const payload = token.split(".")[1];
-      const decoded = JSON.parse(atob(payload));
-      console.log(decoded.sub);
-      return decoded.sub;
-    } catch (error) {
-      console.error("토큰 디코딩 오류:", error);
-      return null;
-    }
-  };
-
-  const followLists = (userEmail) => {
+  const fetchFollowList = () => {
     follow(userEmail)
       .then((res) => {
         setFollowList(res.data);
@@ -42,22 +27,14 @@ const FollowList = () => {
 
   useFocusEffect(
     useCallback(() => {
-      const fetchFollow = async () => {
-        const userEmail = await getUserEmailFromToken();
-        if (!userEmail) return;
-        followLists(userEmail);
-      };
-
-      fetchFollow();
-    }, [])
+      if (!userEmail) return;
+      fetchFollowList();
+    }, [userEmail])
   );
 
   const unfollow = async (toUserEmail) => {
-    const fromUserEmail = await getUserEmailFromToken();
-    if (!fromUserEmail) return;
-
     try {
-      await unfollowApi(toUserEmail, fromUserEmail);
+      await unfollowApi(toUserEmail, userEmail);
       setFollowList((prevList) =>
         prevList.filter((user) => user.toUserEmail !== toUserEmail)
       );
