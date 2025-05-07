@@ -15,17 +15,17 @@ const Header = () => {
   const auth = useSelector((state) => state.auth);
   const user = useSelector((state) => state.auth.user);
 
-  // const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // const handleLogout = () => {
-  //   SecureStore.deleteItemAsync("accessToken")
-  //     .then(() => {
-  //       setShowLogoutModal(false);
-  //       dispatch(logoutReducer());
-  //       router.replace("/");
-  //     })
-  //     .catch((error) => console.error("SecureStore 오류:", error));
-  // };
+  const handleLogout = () => {
+    SecureStore.deleteItemAsync("accessToken")
+      .then(() => {
+        setShowLogoutModal(false);
+        dispatch(logoutReducer());
+        router.replace("/");
+      })
+      .catch((error) => console.error("SecureStore 오류:", error));
+  };
   const getUserNameFromToken = async () => {
     try {
       const token = await SecureStore.getItemAsync("accessToken");
@@ -52,11 +52,11 @@ const Header = () => {
             <>
               <Text>{getUserNameFromToken()} 님 반갑습니다.</Text>
 
-              {/* <Pressable onPress={() => setShowLogoutModal(true)}>
+              <Pressable onPress={() => setShowLogoutModal(true)}>
                 <Text style={{ color: "#EF4444", fontWeight: "bold" }}>
                   로그아웃
                 </Text>
-              </Pressable> */}
+              </Pressable>
             </>
           ) : (
             <>
@@ -73,7 +73,7 @@ const Header = () => {
       </View>
 
       {/* 로그아웃 모달 */}
-      {/* {showLogoutModal && (
+      {showLogoutModal && (
         <View style={styles.modalBackdrop}>
           <View style={styles.modalBox}>
             <View style={styles.modalIcon}>
@@ -93,7 +93,7 @@ const Header = () => {
             </View>
           </View>
         </View>
-      )} */}
+      )}
     </>
   );
 };

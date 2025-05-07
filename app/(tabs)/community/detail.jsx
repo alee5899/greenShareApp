@@ -260,6 +260,7 @@ const DetailScreen = () => {
     </View>
   );
 
+
   return (
     <FlatList
       style={styles.container}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,20 +12,19 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getDetailStories, upDateStories } from '../../../../apis/plantStory';
-import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor'; // ✨ 추가
+import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
+import * as ImagePicker from 'expo-image-picker'; // 📸 이미지 선택 기능 추가
 
 const EditScreen = () => {
   const { boardNum } = useLocalSearchParams();
   const router = useRouter();
-  const editorRef = useRef(null); // ✨ 에디터 ref
+  const editorRef = useRef(null);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-
 
   useFocusEffect(
     useCallback(() => {
@@ -35,13 +34,13 @@ const EditScreen = () => {
           if (!boardNum || isNaN(Number(boardNum))) {
             throw new Error('유효하지 않은 boardNum입니다.');
           }
-  
+
           const res = await getDetailStories(Number(boardNum));
-  
+
           if (!res?.data) {
             throw new Error('게시글 데이터를 받지 못했습니다.');
           }
-  
+
           setTitle(res.data.title || '');
           setContent(res.data.content || '');
         } catch (error) {
@@ -51,82 +50,94 @@ const EditScreen = () => {
           setLoading(false);
         }
       };
-  
+
       fetchData();
     }, [boardNum])
   );
-
-
-
-
-
-  
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
       Alert.alert('입력 확인', '제목과 내용을 모두 입력해주세요.');
       return;
     }
-  
+
     try {
       await upDateStories(Number(boardNum), { title, content });
-      setShowModal(true); // ✅ 모달 표시
+      setShowModal(true);
     } catch (error) {
       console.error('게시글 수정 실패:', error.response?.data || error.message);
       Alert.alert('수정 실패', '게시글 수정 중 오류가 발생했습니다.');
     }
   };
-  
 
-      if (loading) {
-        return (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#007bff" />
-            <Text style={styles.loadingText}>불러오는 중...</Text>
-          </View>
-        );
+  const handleInsertImage = async () => {
+    try {
+      // 이미지 라이브러리 열기
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        const imageUri = result.assets[0].uri;
+        editorRef.current?.insertImage(imageUri);
       }
+    } catch (error) {
+      console.error('이미지 선택 실패:', error);
+      Alert.alert('오류', '이미지를 선택하지 못했습니다.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text style={styles.loadingText}>불러오는 중...</Text>
+      </View>
+    );
+  }
 
   return (
-  <>  
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>게시글 수정</Text>
+    <>
+      <ScrollView style={styles.container}>
+        <Text style={styles.header}>게시글 수정</Text>
 
-      <Text style={styles.label}>제목</Text>
-      <TextInput
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="제목을 입력하세요"
-      />
-
-      <Text style={styles.label}>내용</Text>
-
-      <View style={styles.editorContainer}>
-        <RichEditor
-          ref={editorRef}
-          initialContentHTML={content} // ✨ 기존 HTML 넣기
-          onChange={(html) => setContent(html)} // ✨ 수정되면 저장
-          placeholder="내용을 입력하세요"
-          style={styles.editor}
-          initialHeight={300}
+        <Text style={styles.label}>제목</Text>
+        <TextInput
+          style={styles.input}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="제목을 입력하세요"
         />
-      </View>
 
-      <RichToolbar
-        editor={editorRef}
-        actions={[
-          actions.insertImage,
-          actions.setBold,
-          actions.setItalic,
-          actions.setUnderline,
-        ]}
-        style={styles.toolbar}
-      />
+        <Text style={styles.label}>내용</Text>
 
-      <Button title="저장하기" onPress={handleSave} />
-    </ScrollView>
+        <View style={styles.editorContainer}>
+          <RichEditor
+            ref={editorRef}
+            initialContentHTML={content}
+            onChange={(html) => setContent(html)}
+            placeholder="내용을 입력하세요"
+            style={styles.editor}
+            initialHeight={300}
+          />
+        </View>
 
+        <RichToolbar
+          editor={editorRef}
+          actions={[
+            actions.insertImage,
+            actions.setBold,
+            actions.setItalic,
+            actions.setUnderline,
+          ]}
+          style={styles.toolbar}
+          onPressAddImage={handleInsertImage} // ✨ 이미지 삽입 핸들러 연결
+        />
+
+        <Button title="저장하기" onPress={handleSave} />
+      </ScrollView>
 
       {showModal && (
         <View style={styles.modalBackdrop}>
@@ -148,7 +159,7 @@ const EditScreen = () => {
           </View>
         </View>
       )}
-    </>   
+    </>
   );
 };
 
@@ -259,5 +270,4 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  
 });
