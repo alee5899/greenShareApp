@@ -195,7 +195,7 @@ const WebSocketClient = () => {
   // 웹소켓 클라이언트 설정
   useEffect(() => {
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS("http://10.0.2.2:8080/ws"),
+      webSocketFactory: () => new SockJS("http://192.168.30.166:8080/ws"),
       connectHeaders: {},
       debug: (str) => console.log(str),
       onConnect: () => {

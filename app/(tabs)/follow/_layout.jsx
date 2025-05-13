@@ -8,6 +8,7 @@ const SearchLayout = () => {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="follow/WebSocketClient" />
+      <Stack.Screen name="follow/FollowList" />
     </Stack>
   );
 };

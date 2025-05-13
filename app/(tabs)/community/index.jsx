@@ -106,6 +106,7 @@ const ProfileHomeScreen = () => {
           data={boardList}
           renderItem={({ item }) => (
             <Pressable
+              style={styles.item}
               onPress={() => {
                 router.push({
                   pathname: "/community/detail",
@@ -120,7 +121,9 @@ const ProfileHomeScreen = () => {
             </Pressable>
           )}
           keyExtractor={(item) => item.boardNum.toString()}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{
+            paddingVertical: 16,
+          }}
         />
       )}
 
@@ -138,7 +141,7 @@ const ProfileHomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
   },
   header: {
     fontSize: 24,
@@ -149,12 +152,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   item: {
-    marginBottom: 16,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
+    width: Dimensions.get("window").width, // ✅ 화면 가로 길이 꽉 채우기
+    padding: 14,
+
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    alignSelf: "center", // ✅ 중앙 정렬 필수!
   },
+
   title: {
     fontSize: 18,
     fontWeight: "bold",
@@ -170,15 +175,18 @@ const styles = StyleSheet.create({
     color: "#444",
   },
   imageContainer: {
-    width: screenWidth - 32,
-    marginBottom: 12,
+    width: Dimensions.get("window").width - 28, // ✅ padding만큼 줄이기
+    alignSelf: "center",
+    marginBottom: 10,
   },
+
   image: {
     width: "100%",
-    height: undefined,
-    aspectRatio: 1.5,
-    borderRadius: 8,
+    height: 160,
+    borderRadius: 10,
+    resizeMode: "cover",
   },
+
   likeContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -192,7 +200,7 @@ const styles = StyleSheet.create({
   writeBtn: {
     position: "absolute",
     bottom: 30,
-    right: 20,
+    right: 12,
     backgroundColor: "#007bff",
     width: 60,
     height: 60,

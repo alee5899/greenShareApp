@@ -11,16 +11,11 @@ import {
   Pressable,
 } from "react-native";
 import { api_join } from "../../apis/memberApi";
-import { useNavigation } from '@react-navigation/native';
-import AntDesign from '@expo/vector-icons/AntDesign';
-
-
+import { useNavigation } from "@react-navigation/native";
+import AntDesign from "@expo/vector-icons/AntDesign";
 
 const Join = () => {
-
-  
   const [modalVisible, setModalVisible] = useState(false);
-
 
   const [joinData, setJoinData] = useState({
     userEmail: "",
@@ -39,10 +34,17 @@ const Join = () => {
       [name]: text,
     });
   }
-  
 
   const handleJoin = () => {
-    const { userEmail, userPassword, confirmPassword, tel1, tel2, tel3, userName } = joinData;
+    const {
+      userEmail,
+      userPassword,
+      confirmPassword,
+      tel1,
+      tel2,
+      tel3,
+      userName,
+    } = joinData;
     const userTel = `${tel1}-${tel2}-${tel3}`;
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,22 +52,29 @@ const Join = () => {
     const telRegex = /^\d+$/;
 
     if (!emailRegex.test(userEmail)) {
-      Alert.alert( "올바른 이메일 형식을 입력해주세요.");
+      Alert.alert("올바른 이메일 형식을 입력해주세요.");
       return;
     }
 
     if (!passwordRegex.test(userPassword)) {
-      Alert.alert( "비밀번호는 영문+숫자 포함 6자리 이상이어야 합니다.");
+      Alert.alert("비밀번호는 영문+숫자 포함 6자리 이상이어야 합니다.");
       return;
     }
 
     if (userPassword !== confirmPassword) {
-      Alert.alert( "비밀번호가 일치하지 않습니다.");
+      Alert.alert("비밀번호가 일치하지 않습니다.");
       return;
     }
 
-    if (!tel1 || !tel2 || !tel3 || !telRegex.test(tel1) || !telRegex.test(tel2) || !telRegex.test(tel3)) {
-      Alert.alert( "전화번호를 숫자로 정확히 입력해주세요.");
+    if (
+      !tel1 ||
+      !tel2 ||
+      !tel3 ||
+      !telRegex.test(tel1) ||
+      !telRegex.test(tel2) ||
+      !telRegex.test(tel3)
+    ) {
+      Alert.alert("전화번호를 숫자로 정확히 입력해주세요.");
       return;
     }
 
@@ -77,23 +86,19 @@ const Join = () => {
     };
 
     api_join(dataToSend)
-    .then((res) => {
-      console.log("회원가입 성공:", res.data);
-      setModalVisible(true); // ✅ 모달 표시
-    })
-    .catch((e) => {
-      console.error("회원가입 실패:", e);
-      Alert.alert("회원가입 오류 발생");
-    });
-  
+      .then((res) => {
+        console.log("회원가입 성공:", res.data);
+        setModalVisible(true); // ✅ 모달 표시
+      })
+      .catch((e) => {
+        console.error("회원가입 실패:", e);
+        Alert.alert("회원가입 오류 발생");
+      });
   };
 
   const handleGenderSelect = (selectedGender) => {
     setJoinData({ ...joinData, gender: selectedGender });
   };
-  
-
-
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -138,7 +143,12 @@ const Join = () => {
             style={styles.genderOption}
             onPress={() => handleGenderSelect("male")}
           >
-            <View style={[styles.checkBox, joinData.gender === "male" && styles.checkedBox]} />
+            <View
+              style={[
+                styles.checkBox,
+                joinData.gender === "male" && styles.checkedBox,
+              ]}
+            />
             <Text style={styles.genderLabel}>남자</Text>
           </TouchableOpacity>
 
@@ -146,12 +156,15 @@ const Join = () => {
             style={styles.genderOption}
             onPress={() => handleGenderSelect("female")}
           >
-            <View style={[styles.checkBox, joinData.gender === "female" && styles.checkedBox]} />
+            <View
+              style={[
+                styles.checkBox,
+                joinData.gender === "female" && styles.checkedBox,
+              ]}
+            />
             <Text style={styles.genderLabel}>여자</Text>
           </TouchableOpacity>
         </View>
-
-
 
         <Text style={styles.subTitle}>전화번호</Text>
         <View style={styles.phoneWrapper}>
@@ -182,87 +195,83 @@ const Join = () => {
             onChangeText={(text) => handleChange(text, "tel3")}
           />
 
+          <Modal visible={modalVisible} transparent animationType="fade">
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: "80%",
+                  backgroundColor: "#fff",
+                  borderRadius: 16,
+                  padding: 24,
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOpacity: 0.25,
+                  shadowRadius: 4,
+                  elevation: 5,
+                }}
+              >
+                <View
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 36,
+                    backgroundColor: "#D1FAE5", // 연한 초록 배경
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  <AntDesign name="checkcircleo" size={40} color="#10B981" />
+                </View>
 
-<Modal visible={modalVisible} transparent animationType="fade">
-  <View
-    style={{
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
-      justifyContent: "center",
-      alignItems: "center",
-    }}
-  >
-    <View
-      style={{
-        width: "80%",
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        padding: 24,
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-      }}
-    >
-      
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              backgroundColor: "#D1FAE5", // 연한 초록 배경
-              justifyContent: "center",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-      <AntDesign name="checkcircleo" size={40} color="#10B981" />
-    </View>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: "bold",
+                    color: "#10B981",
+                    marginBottom: 8,
+                  }}
+                >
+                  등록 완료!
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: "#555",
+                    textAlign: "center",
+                    marginBottom: 20,
+                  }}
+                >
+                  회원가입이 성공적으로 완료되었습니다.
+                </Text>
 
-      
-
-
-      <Text
-        style={{
-          fontSize: 20,
-          fontWeight: "bold",
-          color: "#10B981",
-          marginBottom: 8,
-        }}
-      >
-        등록 완료!
-      </Text>
-      <Text
-        style={{
-          fontSize: 14,
-          color: "#555",
-          textAlign: "center",
-          marginBottom: 20,
-        }}
-      >
-        회원가입이 성공적으로 완료되었습니다.
-      </Text>
-
-      <Pressable
-        style={{
-          width: "100%",
-          backgroundColor: "#10B981",
-          paddingVertical: 10,
-          borderRadius: 8,
-          alignItems: "center",
-        }}
-        onPress={() => {
-          setModalVisible(false);
-          navigation.navigate("/"); // ✅ 홈으로 이동
-        }}
-      >
-        <Text style={{ fontWeight: "bold", color: "white" }}>확인</Text>
-      </Pressable>
-    </View>
-  </View>
-</Modal>
-
+                <Pressable
+                  style={{
+                    width: "100%",
+                    backgroundColor: "#10B981",
+                    paddingVertical: 10,
+                    borderRadius: 8,
+                    alignItems: "center",
+                  }}
+                  onPress={() => {
+                    setModalVisible(false);
+                    navigation.navigate("/"); // ✅ 홈으로 이동
+                  }}
+                >
+                  <Text style={{ fontWeight: "bold", color: "white" }}>
+                    확인
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
         </View>
 
         <TouchableOpacity style={styles.button} onPress={handleJoin}>
@@ -360,6 +369,5 @@ const styles = StyleSheet.create({
   },
   genderLabel: {
     fontSize: 16,
-  }
-  
+  },
 });

@@ -140,7 +140,7 @@ export default ProfileHomeScreen;
 const styles = StyleSheet.create({
   mainCon: {
     width: "100%",
-    backgroundColor: "white",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 20, // padding을 주면 내용이 부모 영역에 맞게 설정
   },
   picCon: {

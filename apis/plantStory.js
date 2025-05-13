@@ -47,6 +47,7 @@ export const insertReply = async (replyData) => {
   return response.data;
 };
 
+
 //댓글 삭제
 
 export const deleteReply = (commentId) => {
@@ -61,7 +62,7 @@ export const updateRelpy = (commentId) => {
 }
 
 
-// 게시글 당 댓글 조회
+//게시글당 댓글 조회 API
 export const replyList = async (boardNum) => {
   const response = await axiosInstance.get(`/plantReplies/${boardNum}`);
   return response;

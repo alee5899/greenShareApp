@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
-
 import * as SecureStore from "expo-secure-store";
 import { logoutReducer } from "../redux/authSlice";
 import logo from "./../assets/images/greenshare.png";
@@ -13,9 +12,18 @@ const Header = () => {
   const dispatch = useDispatch();
 
   const auth = useSelector((state) => state.auth);
-  const user = useSelector((state) => state.auth.user);
-
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [userName, setUserName] = useState(""); // ✅ 사용자 이름 상태
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const name = await getUserNameFromToken();
+      if (name) setUserName(name);
+    };
+
+
+    fetchUserName();
+  }, []);
 
   const handleLogout = () => {
     SecureStore.deleteItemAsync("accessToken")
@@ -26,6 +34,7 @@ const Header = () => {
       })
       .catch((error) => console.error("SecureStore 오류:", error));
   };
+
   const getUserNameFromToken = async () => {
     try {
       const token = await SecureStore.getItemAsync("accessToken");
@@ -46,12 +55,10 @@ const Header = () => {
     <>
       <View style={styles.headerContainer}>
         <Image source={logo} style={styles.logo} resizeMode="contain" />
-
         <View style={styles.loginStatus}>
           {auth.isLogin ? (
             <>
-              <Text>{getUserNameFromToken()} 님 반갑습니다.</Text>
-
+              <Text>{userName} 님 반갑습니다.</Text>
               <Pressable onPress={() => setShowLogoutModal(true)}>
                 <Text style={{ color: "#EF4444", fontWeight: "bold" }}>
                   로그아웃
@@ -63,7 +70,6 @@ const Header = () => {
               <Pressable onPress={() => router.push("/auth/login")}>
                 <Text>로그인</Text>
               </Pressable>
-
               <Pressable onPress={() => router.push("/auth/join")}>
                 <Text>회원가입</Text>
               </Pressable>
@@ -103,7 +109,7 @@ export default Header;
 const styles = StyleSheet.create({
   headerContainer: {
     height: 40,
-    backgroundColor: "white",
+    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 10,

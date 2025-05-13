@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -18,103 +18,125 @@ import {
   insertReply,
   replyList,
   deleteReply,
-} from "../../../apis/plantStory";
-import RenderHtml from "react-native-render-html";
-import * as SecureStore from "expo-secure-store";
-import { useFocusEffect } from "@react-navigation/native";
-import { useSelector } from "react-redux";
+} from "../../../apis/plantStory"; // 게시글/댓글 관련 API 함수들
+import RenderHtml from "react-native-render-html"; // 게시글 본문 HTML 렌더링용
+import * as SecureStore from "expo-secure-store"; // 토큰 저장소
+import { useFocusEffect } from "@react-navigation/native"; // 화면 포커스 감지
+import { useSelector } from "react-redux"; // Redux 상태관리
 import {
   getUserSubFromToken,
   getUserRoleFromToken,
-} from "../../../redux/authHelper";
-import dayjs from "dayjs";
-import { axiosInstance } from "../../../apis/axiosInstance";
+} from "../../../redux/authHelper"; // 토큰 정보 파싱 함수
+import dayjs from "dayjs"; // 날짜 포맷팅용
+import { axiosInstance } from "../../../apis/axiosInstance"; // Axios 인스턴스
+import ProfileImageViewer from "../../../components/ProfileImageViewer"; // 프로필 이미지 컴포넌트
 
+// 메인 컴포넌트 시작
 const DetailScreen = () => {
-  const { boardNum } = useLocalSearchParams();
-  const router = useRouter();
-  const screenWidth = Dimensions.get("window").width;
+  const { boardNum } = useLocalSearchParams(); // URL에서 게시글 번호 가져오기
+  const router = useRouter(); // 페이지 이동 함수
+  const screenWidth = Dimensions.get("window").width; // 현재 화면 너비 가져오기
 
-  const [detailData, setDetailData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [replyInfo, setReplyInfo] = useState({});
-  const [reloadTrigger, setReloadTrigger] = useState(false);
-  const [replies, setReplies] = useState([]);
+  //  게시글 & 댓글 상태값 정의
+  const [detailData, setDetailData] = useState(null); // 게시글 데이터
+  const [loading, setLoading] = useState(true); // 로딩 여부
 
-  const [editMode, setEditMode] = useState(null);
-  const [editContent, setEditContent] = useState("");
+  const [replyInfo, setReplyInfo] = useState({}); // 댓글 작성 내용
+  const [reloadTrigger, setReloadTrigger] = useState(false); // 새로고침 트리거
+  const [replies, setReplies] = useState([]); // 댓글 리스트
 
+  const [editMode, setEditMode] = useState(null); // 현재 수정 중인 댓글 ID
+  const [editContent, setEditContent] = useState(""); // 수정 중 댓글 내용
+
+  //  내 계정 정보 (Redux에서 가져오기)
   const token = useSelector((state) => state.auth.token);
-  const myEmail = getUserSubFromToken(token);
-  const myRole = getUserRoleFromToken(token);
+  const myEmail = getUserSubFromToken(token); // 내 이메일
+  const myRole = getUserRoleFromToken(token); // 내 권한
 
+  // 내가 작성한 글인지 + 관리자 권한인지 확인
   const isMyPost =
     detailData?.userEmail?.toLowerCase() === myEmail?.toLowerCase() ||
     myRole === "ROLE_ADMIN";
 
+  /**
+   *  게시글 상세 가져오기
+   */
   useFocusEffect(
     useCallback(() => {
-      const fetchDetail = async () => {
-        setLoading(true);
-        try {
-          const response = await getDetailStories(Number(boardNum));
-          setDetailData(response.data);
-        } catch (error) {
+      setLoading(true); // 로딩 상태 true로 변경
+      getDetailStories(Number(boardNum))
+        .then((response) => {
+          setDetailData(response.data); // 게시글 데이터 저장
+        })
+        .catch(() => {
           Alert.alert("오류", "게시글을 가져오는 데 실패했습니다.");
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchDetail();
+        })
+        .finally(() => {
+          setLoading(false); // 로딩 종료
+        });
     }, [boardNum, reloadTrigger])
   );
 
-  const reply = async (replyData) => {
-    try {
-      const res = await insertReply(replyData);
-      const newToken = res.headers?.authorization;
-      if (newToken) await SecureStore.setItemAsync("accessToken", newToken);
-      Alert.alert("성공", "댓글이 등록되었습니다.");
-      setReplyInfo({});
-      setReloadTrigger((prev) => !prev);
-    } catch (error) {
-      Alert.alert("오류", "댓글 등록에 실패했습니다.");
-    }
+  /**
+   *  댓글 가져오기
+   */
+  useFocusEffect(
+    useCallback(() => {
+      replyList(Number(boardNum))
+        .then((res) => {
+          setReplies(res.data); // 댓글 저장
+        })
+        .catch((err) => {
+          console.error("댓글 불러오기 실패:", err);
+        });
+    }, [boardNum, reloadTrigger])
+  );
+
+  /**
+   *  댓글 작성
+   */
+  const reply = (replyData) => {
+    insertReply(replyData)
+      .then((res) => {
+        const newToken = res.headers?.authorization;
+        if (newToken) {
+          SecureStore.setItemAsync("accessToken", newToken); // 토큰 갱신
+        }
+        Alert.alert("성공", "댓글이 등록되었습니다.");
+        setReplyInfo({}); // 댓글 입력창 초기화
+        setReloadTrigger((prev) => !prev); // 새로고침 트리거
+      })
+      .catch(() => {
+        Alert.alert("오류", "댓글 등록에 실패했습니다.");
+      });
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchReplies = async () => {
-        try {
-          const res = await replyList(Number(boardNum));
-          setReplies(res.data);
-        } catch (err) {
-          console.error("댓글 불러오기 실패:", err);
-        }
-      };
-      if (boardNum) fetchReplies();
-    }, [boardNum, reloadTrigger])
-  );
-
-  const handleDelete = async () => {
+  /**
+   * 게시글 삭제
+   */
+  const handleDelete = () => {
     Alert.alert("삭제 확인", "정말 삭제하시겠습니까?", [
       { text: "취소", style: "cancel" },
       {
         text: "삭제",
         style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteStories(Number(boardNum));
-            Alert.alert("삭제 완료", "게시글이 삭제되었습니다.");
-            router.back();
-          } catch {
-            Alert.alert("삭제 실패", "게시글 삭제 중 오류가 발생했습니다.");
-          }
+        onPress: () => {
+          deleteStories(Number(boardNum))
+            .then(() => {
+              Alert.alert("삭제 완료", "게시글이 삭제되었습니다.");
+              router.back(); // 이전 페이지로 이동
+            })
+            .catch(() => {
+              Alert.alert("삭제 실패", "게시글 삭제 중 오류가 발생했습니다.");
+            });
         },
       },
     ]);
   };
 
+  /**
+   * 댓글 삭제
+   */
   const handleConfirmDeleteReply = (commentId) => {
     Alert.alert("댓글 삭제", "정말 삭제하시겠습니까?", [
       { text: "취소", style: "cancel" },
@@ -125,7 +147,7 @@ const DetailScreen = () => {
           deleteReply(commentId)
             .then(() => {
               Alert.alert("삭제 완료", "댓글이 삭제되었습니다.");
-              setReloadTrigger((prev) => !prev);
+              setReloadTrigger((prev) => !prev); // 새로고침 트리거
             })
             .catch(() => {
               Alert.alert("삭제 실패", "댓글 삭제 중 오류가 발생했습니다.");
@@ -135,11 +157,17 @@ const DetailScreen = () => {
     ]);
   };
 
+  /**
+   * 댓글 수정 시작 (버튼 클릭 시 실행)
+   */
   const handleEditReply = (item) => {
-    setEditMode(item.commentId);
-    setEditContent(item.content);
+    setEditMode(item.commentId); // 수정할 댓글 ID
+    setEditContent(item.content); // 기존 댓글 내용 세팅
   };
 
+  /**
+   * 댓글 수정 저장
+   */
   const handleSaveEditedReply = (commentId) => {
     Alert.alert("댓글 수정", "정말 수정하시겠습니까?", [
       { text: "취소", style: "cancel" },
@@ -160,9 +188,9 @@ const DetailScreen = () => {
             )
             .then(() => {
               Alert.alert("성공", "댓글이 수정되었습니다.");
-              setEditMode(null);
-              setEditContent("");
-              setReloadTrigger((prev) => !prev);
+              setEditMode(null); // 수정 모드 해제
+              setEditContent(""); // 입력창 초기화
+              setReloadTrigger((prev) => !prev); // 새로고침
             })
             .catch(() => {
               Alert.alert("실패", "댓글 수정 중 오류가 발생했습니다.");
@@ -172,6 +200,9 @@ const DetailScreen = () => {
     ]);
   };
 
+  /**
+   * HTML 이미지 렌더링 (게시글 본문)
+   */
   const customRenderers = {
     img: ({ tnode }) => {
       const imageUri = tnode.attributes.src;
@@ -181,36 +212,45 @@ const DetailScreen = () => {
           source={{ uri: imageUri }}
           style={{
             width: screenWidth * 0.9,
-            height: 200,
-            resizeMode: "contain",
+            aspectRatio: 1,
             borderRadius: 10,
-            alignSelf: "center",
             marginVertical: 10,
+            resizeMode: "cover",
+            backgroundColor: "#F0F0F0",
           }}
         />
       );
     },
   };
 
+  // 로딩 화면
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#007bff" />
+        <ActivityIndicator size="large" color="#3DA66E" />
         <Text style={styles.loadingText}>불러오는 중...</Text>
       </View>
     );
   }
 
+  /**
+   * 게시글 상단 부분 구성 (프로필, 제목, 본문, 댓글 작성창)
+   */
   const headerComponent = (
     <View style={styles.card}>
-      <Text style={styles.title}>{detailData.title || "제목 없음"}</Text>
-      <View style={styles.metaInfo}>
-        <Text style={styles.metaText}>작성자: {detailData.userEmail}</Text>
-        <Text style={styles.metaText}>
-          등록일: {dayjs(detailData.regDate).format("YYYY-MM-DD")}
-        </Text>
-        <Text style={styles.metaText}>조회수: {detailData.readCnt ?? "0"}</Text>
+      <View style={styles.postHeader}>
+        <ProfileImageViewer userEmail={detailData.userEmail} size={60} />
+        <View style={{ marginLeft: 12, justifyContent: "center" }}>
+          <Text style={styles.writerName}>{detailData.userName}</Text>
+          <Text style={styles.postDate}>
+            등록일: {dayjs(detailData.regDate).format("YYYY-MM-DD")}
+          </Text>
+          <Text style={styles.postViews}>
+            조회수: {detailData.readCnt ?? "0"}
+          </Text>
+        </View>
       </View>
+      <Text style={styles.title}>{detailData.title || "제목 없음"}</Text>
       <View style={styles.contentArea}>
         {detailData.content ? (
           <RenderHtml
@@ -246,6 +286,9 @@ const DetailScreen = () => {
     </View>
   );
 
+  /**
+   * 게시글 수정/삭제 버튼 (내 글이거나 관리자만 보임)
+   */
   const footerComponent = isMyPost && (
     <View style={styles.buttonGroup}>
       <Pressable
@@ -260,7 +303,9 @@ const DetailScreen = () => {
     </View>
   );
 
-
+  /**
+   * 전체 화면 렌더링 (FlatList로 댓글 리스트 표시)
+   */
   return (
     <FlatList
       style={styles.container}
@@ -271,61 +316,60 @@ const DetailScreen = () => {
         item.replyNum?.toString() ?? index.toString()
       }
       renderItem={({ item }) => (
-        <View style={styles.commentCard}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.commentUser}>{item.userEmail || "익명"}</Text>
-            <Text style={styles.commentDate}>
-              {dayjs(item.regDate).format("YYYY-MM-DD")}
+        <View style={styles.commentRow}>
+          {/* 댓글 작성자 프로필 */}
+          <ProfileImageViewer userEmail={item.userEmail} size={50} />
+          {/* 댓글 내용 */}
+          <View style={styles.commentContentBox}>
+            <Text style={styles.commentUser}>
+              {item.userName || item.userEmail}
             </Text>
-          </View>
-          {editMode === item.commentId ? (
-            <>
-              <TextInput
-                value={editContent}
-                onChangeText={setEditContent}
-                multiline
-                style={[styles.commentInput, { marginTop: 8 }]}
-              />
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "flex-end",
-                  marginTop: 4,
-                }}
-              >
-                <Pressable onPress={() => setEditMode(null)}>
-                  <Text style={{ marginRight: 16, color: "#999" }}>취소</Text>
-                </Pressable>
+            {editMode === item.commentId ? (
+              <>
+                <TextInput
+                  value={editContent}
+                  onChangeText={setEditContent}
+                  multiline
+                  style={[styles.commentInput, { marginTop: 6 }]}
+                />
+                <View style={styles.actionRow}>
+                  <Pressable
+                    onPress={() => handleSaveEditedReply(item.commentId)}
+                  >
+                    <Text style={styles.actionTextGreen}>저장</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setEditMode(null)}>
+                    <Text style={styles.actionTextGray}>취소</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.commentText}>{item.content}</Text>
+            )}
+            {(item.userEmail === myEmail || myRole === "ROLE_ADMIN") && (
+              <View style={styles.actionRow}>
                 <Pressable
-                  onPress={() => handleSaveEditedReply(item.commentId)}
+                  onPress={() => handleConfirmDeleteReply(item.commentId)}
                 >
-                  <Text style={{ color: "#3DA66E" }}>저장</Text>
+                  <Text style={styles.actionTextRed}>삭제</Text>
+                </Pressable>
+                <Pressable onPress={() => handleEditReply(item)}>
+                  <Text style={styles.actionTextGreen}>수정</Text>
                 </Pressable>
               </View>
-            </>
-          ) : (
-            <Text style={styles.commentContent}>{item.content}</Text>
-          )}
-          {(item.userEmail === myEmail || myRole === "ROLE_ADMIN") && (
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "flex-end",
-                marginTop: 6,
-              }}
-            >
-              <Pressable
-                onPress={() => handleConfirmDeleteReply(item.commentId)}
-              >
-                <Text style={{ color: "#EF5350", marginRight: 12 }}>
-                  댓글 삭제
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => handleEditReply(item)}>
-                <Text style={{ color: "#3DA66E" }}>댓글 수정</Text>
-              </Pressable>
-            </View>
-          )}
+            )}
+          </View>
+          {/* 댓글 작성일 */}
+          <View
+            style={{
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+            }}
+          >
+            <Text style={styles.commentDateMini}>
+              {dayjs(item.regDate).format("YY.MM.DD")}
+            </Text>
+          </View>
         </View>
       )}
       ListEmptyComponent={
@@ -338,58 +382,57 @@ const DetailScreen = () => {
 export default DetailScreen;
 
 const styles = StyleSheet.create({
-  contentContainer: {
-    padding: 20,
+  container: {
+    flex: 1,
     backgroundColor: "#F1F8F4",
   },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#5E716A",
-  },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 12, fontSize: 16, color: "#5E716A" },
   card: {
     backgroundColor: "#ffffff",
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#2E473D",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  metaInfo: {
-    marginBottom: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: "#DCE8E2",
-  },
-  metaText: {
-    fontSize: 13,
-    color: "#677E75",
-    textAlign: "center",
-  },
-  contentArea: {
-    marginVertical: 20,
-    padding: 12,
-    backgroundColor: "#F6FCF8",
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#D0E6DA",
+  },
+  postHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14, // 위아래 여백 증가
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#D0E6DA",
+  },
+  writerName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#3A7660",
+    marginBottom: 4, // 닉네임 아래 공간 추가
+  },
+  postDate: {
+    fontSize: 12,
+    color: "#A3B5A8",
+    marginBottom: 2,
+  },
+  postViews: {
+    fontSize: 12,
+    color: "#A3B5A8",
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#2E473D",
+    marginTop: 16, // 제목 위쪽 공간 늘림
+    marginBottom: 12,
+  },
+  contentArea: {
+    marginBottom: 16,
   },
   commentInputContainer: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginTop: 20,
-    marginBottom: 16,
+    marginTop: 12,
   },
   commentInput: {
     flex: 1,
@@ -403,43 +446,69 @@ const styles = StyleSheet.create({
   },
   commentButton: {
     backgroundColor: "#3DA66E",
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#A8D0BA",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   commentButtonText: {
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 14,
   },
-  commentCard: {
-    backgroundColor: "#ffffff",
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#D5EDE0",
-  },
-  commentHeader: {
+  commentRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
+    alignItems: "flex-start",
+    paddingVertical: 16, // 위아래 여백 넉넉하게
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#DCE8E2",
+    backgroundColor: "#F9FCF8",
+  },
+  commentContentBox: {
+    marginLeft: 15, // 프로필 이미지와 내용 간 간격 넓힘
+    flex: 1,
   },
   commentUser: {
     fontWeight: "bold",
-    color: "#3A7660",
-    fontSize: 13,
-  },
-  commentDate: {
-    fontSize: 12,
-    color: "#888888",
-  },
-  commentContent: {
     fontSize: 14,
-    color: "#444",
+    color: "#3A7660",
+    marginBottom: 6, // 닉네임과 댓글 내용 사이 간격
+  },
+  commentText: {
+    fontSize: 14,
+    color: "#333",
     lineHeight: 20,
+    marginBottom: 8, // 본문과 버튼 사이 간격
+  },
+  commentDateMini: {
+    fontSize: 10,
+    color: "#A3B5A8",
+    marginTop: 6,
+  },
+  actionRow: {
+    flexDirection: "row",
+    marginTop: 8, // 버튼 위쪽 공간 늘림
+  },
+  actionTextRed: {
+    color: "#EF5350",
+    fontSize: 12,
+    marginRight: 16, // 삭제/수정 버튼 사이 간격 넓힘
+  },
+  actionTextGreen: {
+    color: "#3DA66E",
+    fontSize: 12,
+    marginRight: 8,
+  },
+  actionTextGray: {
+    color: "#999",
+    fontSize: 12,
+    marginRight: 8,
   },
   commentEmpty: {
     fontSize: 13,

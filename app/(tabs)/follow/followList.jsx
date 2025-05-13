@@ -10,11 +10,11 @@ import React, { useCallback, useEffect, useState } from "react";
 import { follow, unfollowApi } from "../../../apis/memberApi";
 import MessageButton from "../../../components/MessageButton";
 import CustomText from "../../../components/common/CustomText";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 
-const FollowList = ({ userEmail }) => {
+const FollowList = () => {
   const [followList, setFollowList] = useState([]);
-
+  const { userEmail } = useLocalSearchParams();
   const fetchFollowList = () => {
     follow(userEmail)
       .then((res) => {
@@ -32,15 +32,16 @@ const FollowList = ({ userEmail }) => {
     }, [userEmail])
   );
 
-  const unfollow = async (toUserEmail) => {
-    try {
-      await unfollowApi(toUserEmail, userEmail);
-      setFollowList((prevList) =>
-        prevList.filter((user) => user.toUserEmail !== toUserEmail)
-      );
-    } catch (err) {
-      console.log("언팔로우 오류:", err);
-    }
+  const unfollow = (toUserEmail) => {
+    unfollowApi(toUserEmail, userEmail)
+      .then(() => {
+        setFollowList((prevList) =>
+          prevList.filter((user) => user.toUserEmail !== toUserEmail)
+        );
+      })
+      .catch((err) => {
+        console.log("언팔로우 오류:", err);
+      });
   };
 
   return (
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "white",
+    backgroundColor: "#FFFFFF",
   },
   title: {
     fontSize: 24,

@@ -72,34 +72,35 @@ const FarmerCommunityInsert = () => {
   };
 
   // ✅ 게시글 작성 요청
-  const sendInsert = async () => {
+  const sendInsert = () => {
     if (!title.trim() || !content.trim()) {
       Alert.alert("알림", "제목과 내용을 모두 입력해 주세요.");
       return;
     }
 
-    try {
-      setLoading(true); // 로딩 시작
+    setLoading(true); // 로딩 시작
 
-      await axiosInstance.post("/plantStories", {
+    axiosInstance
+      .post("/plantStories", {
         title,
         content,
+      })
+      .then(() => {
+        Toast.show({
+          type: "success",
+          text1: "성공",
+          text2: "게시글이 등록되었습니다!",
+          position: "top",
+        });
+        router.push("/community"); // 등록 후 목록으로 이동
+      })
+      .catch((error) => {
+        console.error("등록 오류:", error.response?.data || error.message);
+        Alert.alert("에러", "등록 중 오류가 발생했습니다.");
+      })
+      .finally(() => {
+        setLoading(false); // 로딩 끝
       });
-
-      Toast.show({
-        type: "success",
-        text1: "성공",
-        text2: "게시글이 등록되었습니다!",
-        position: "top",
-      });
-
-      router.push("/community"); // 등록 후 목록으로 이동
-    } catch (error) {
-      console.error("등록 오류:", error.response?.data || error.message);
-      Alert.alert("에러", "등록 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false); // 로딩 끝
-    }
   };
 
   return (

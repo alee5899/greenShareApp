@@ -8,13 +8,14 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
-  Pressable,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getDetailStories, upDateStories } from '../../../../apis/plantStory';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
-import { useFocusEffect } from "@react-navigation/native";
-import * as ImagePicker from 'expo-image-picker'; // 📸 이미지 선택 기능 추가
+import { useFocusEffect } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import Toast from 'react-native-toast-message';
 
 const EditScreen = () => {
   const { boardNum } = useLocalSearchParams();
@@ -24,7 +25,6 @@ const EditScreen = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -62,30 +62,63 @@ const EditScreen = () => {
     }
 
     try {
+      setLoading(true);
       await upDateStories(Number(boardNum), { title, content });
-      setShowModal(true);
+
+      Toast.show({
+        type: 'success',
+        text1: '수정 완료',
+        text2: '게시글이 성공적으로 수정되었습니다!',
+        position: 'top',
+      });
+
+      setTimeout(() => {
+        router.replace(`/community/detail?boardNum=${boardNum}`);
+      }, 1500);
     } catch (error) {
       console.error('게시글 수정 실패:', error.response?.data || error.message);
       Alert.alert('수정 실패', '게시글 수정 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleInsertImage = async () => {
     try {
-      // 이미지 라이브러리 열기
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
+        aspect: [4, 3],
         quality: 1,
       });
 
-      if (!result.canceled) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         const imageUri = result.assets[0].uri;
-        editorRef.current?.insertImage(imageUri);
+
+        // JPG 파일만 허용
+        if (!imageUri.endsWith('.jpg') && !imageUri.endsWith('.jpeg')) {
+          Alert.alert('오류', 'JPG 파일만 업로드할 수 있습니다.');
+          return;
+        }
+
+        // 이미지 리사이즈 및 압축 + base64 변환
+        const manipulated = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1024 } }],
+          {
+            compress: 0.7,
+            format: ImageManipulator.SaveFormat.JPEG,
+            base64: true,
+          }
+        );
+
+        const base64Image = `data:image/jpeg;base64,${manipulated.base64}`;
+        editorRef.current?.insertHTML(
+          `<img src="${base64Image}" style="max-width:100%;height:auto;" />`
+        );
       }
     } catch (error) {
-      console.error('이미지 선택 실패:', error);
-      Alert.alert('오류', '이미지를 선택하지 못했습니다.');
+      Alert.alert('오류', '이미지를 불러오는 중 문제가 발생했습니다.');
+      console.log('이미지 오류:', error.message);
     }
   };
 
@@ -99,67 +132,40 @@ const EditScreen = () => {
   }
 
   return (
-    <>
-      <ScrollView style={styles.container}>
-        <Text style={styles.header}>게시글 수정</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.heading}>게시글 수정</Text>
 
+      <View style={styles.titleBox}>
         <Text style={styles.label}>제목</Text>
         <TextInput
           style={styles.input}
+          placeholder="제목을 입력하세요"
           value={title}
           onChangeText={setTitle}
-          placeholder="제목을 입력하세요"
         />
+      </View>
 
-        <Text style={styles.label}>내용</Text>
+      <RichEditor
+        ref={editorRef}
+        initialContentHTML={content}
+        placeholder="내용을 입력하세요"
+        style={styles.editor}
+        initialHeight={400}
+        onChange={(html) => setContent(html)}
+      />
 
-        <View style={styles.editorContainer}>
-          <RichEditor
-            ref={editorRef}
-            initialContentHTML={content}
-            onChange={(html) => setContent(html)}
-            placeholder="내용을 입력하세요"
-            style={styles.editor}
-            initialHeight={300}
-          />
-        </View>
+      <RichToolbar
+        editor={editorRef}
+        actions={[actions.insertImage, actions.setBold, actions.setItalic, actions.setUnderline]}
+        onPressAddImage={handleInsertImage}
+      />
 
-        <RichToolbar
-          editor={editorRef}
-          actions={[
-            actions.insertImage,
-            actions.setBold,
-            actions.setItalic,
-            actions.setUnderline,
-          ]}
-          style={styles.toolbar}
-          onPressAddImage={handleInsertImage} // ✨ 이미지 삽입 핸들러 연결
-        />
-
+      <View style={styles.btnContainer}>
         <Button title="저장하기" onPress={handleSave} />
-      </ScrollView>
+      </View>
 
-      {showModal && (
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalIcon}>
-              <Text style={{ fontSize: 32, color: "#10B981" }}>✔</Text>
-            </View>
-            <Text style={styles.modalTitle}>수정 완료!</Text>
-            <Text style={styles.modalDesc}>게시글이 성공적으로 수정되었습니다.</Text>
-            <Pressable
-              style={styles.modalButton}
-              onPress={() => {
-                setShowModal(false);
-                router.replace(`/community/detail?boardNum=${boardNum}`);
-              }}
-            >
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>확인</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-    </>
+      <Toast />
+    </ScrollView>
   );
 };
 
@@ -167,9 +173,9 @@ export default EditScreen;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 20,
     backgroundColor: '#fff',
+    flexGrow: 1,
   },
   center: {
     flex: 1,
@@ -182,92 +188,33 @@ const styles = StyleSheet.create({
     color: '#555',
     marginTop: 12,
   },
-  header: {
-    fontSize: 24,
+  heading: {
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 20,
   },
+  titleBox: {
+    marginBottom: 16,
+  },
   label: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  editorContainer: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 20,
-  },
-  editor: {
-    flex: 1,
-    minHeight: 300,
-    fontSize: 16,
     padding: 10,
   },
-  toolbar: {
-    backgroundColor: '#eee',
+  editor: {
+    borderWidth: 1,
+    borderColor: '#ccc',
     borderRadius: 8,
-    marginBottom: 20,
+    marginBottom: 12,
+    height: 400,
   },
-  modalBackdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 999,
-  },
-  modalBox: {
-    width: "80%",
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#D1FAE5",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#10B981",
-    marginBottom: 8,
-  },
-  modalDesc: {
-    fontSize: 14,
-    color: "#555",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  modalButton: {
-    width: "100%",
-    backgroundColor: "#10B981",
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
+  btnContainer: {
+    marginTop: 20,
+    gap: 16,
   },
 });

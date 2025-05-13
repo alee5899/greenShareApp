@@ -1,26 +1,20 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-} from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import axios from "axios";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import CustomText from "../../../components/common/CustomText";
 import { colors } from "../../../constants/colorConstant";
 import DeviceControl from "../../../components/DeviceControl"; // ✅ 기기 제어 컴포넌트
 
 // 🌟 대시보드 화면 컴포넌트
 const Dashboard = ({
-  autoRefresh = true,            // 자동 새로고침 활성화 여부 (기본값 true)
-  refreshInterval = 30000,       // 새로고침 주기 (30초)
+  autoRefresh = true, // 자동 새로고침 활성화 여부 (기본값 true)
+  refreshInterval = 30000, // 새로고침 주기 (30초)
   customTitle = "환경 센서 요약", // 화면 상단 타이틀
-  showStandardInfo = false,      // 작물 기준 정보 표시 여부 (현재 사용 안 함)
-  cropDetail,                    // 선택된 작물의 상세 데이터
-  id,                             // 선택된 작물의 ID (cropId)
+  showStandardInfo = false, // 작물 기준 정보 표시 여부 (현재 사용 안 함)
+  cropDetail, // 선택된 작물의 상세 데이터
+  id, // 선택된 작물의 ID (cropId)
 }) => {
-
   // 📊 최신 환경 데이터를 저장하는 state
   const [latest, setLatest] = useState({
     temperature: 0,
@@ -55,13 +49,18 @@ const Dashboard = ({
   };
 
   // ✅ 컴포넌트가 처음 렌더링될 때와, 자동 새로고침 설정 시 데이터 주기적으로 가져오기
-  useEffect(() => {
-    fetchData(); // 첫 진입 시 데이터 가져오기
-    if (autoRefresh) {
-      const interval = setInterval(fetchData, refreshInterval); // 주기적 갱신
-      return () => clearInterval(interval); // 컴포넌트 unmount 시 인터벌 제거
-    }
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(); // 첫 진입 시 데이터 가져오기
+      let interval;
+      if (autoRefresh) {
+        interval = setInterval(fetchData, refreshInterval);
+      } // 주기적 갱신
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    }, [autoRefresh, refreshInterval])
+  );
 
   // ✅ 카드 렌더링 (데이터만 보여주고, 클릭은 없음)
   const renderCard = (label, value, unit, isOk) => (
@@ -93,8 +92,8 @@ const Dashboard = ({
         {customTitle} ({latest.joinDate})
       </Text>
 
-        {/* ✅ 기기 제어 컴포넌트 */}
-        <DeviceControl cropId={id} />
+      {/* ✅ 기기 제어 컴포넌트 */}
+      <DeviceControl cropId={id} />
 
       {/* 뒤로가기 버튼 */}
       <Text style={styles.backButton} onPress={() => router.back()}>
@@ -106,8 +105,6 @@ const Dashboard = ({
       {renderCard("💡 조도", latest.illuminance, "ADC", isLuxOk)}
       {renderCard("💧 습도", latest.humidity, "%", isHumidOk)}
       {renderCard("🌱 토양 수분", latest.soilMoisture, "%", isSoilOk)}
-
-    
     </ScrollView>
   );
 };

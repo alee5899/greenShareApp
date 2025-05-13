@@ -1,22 +1,33 @@
-import { SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal, Pressable } from "react-native";
+import {
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Modal,
+  Pressable,
+} from "react-native";
 import React, { useState } from "react";
 import { api_login } from "../../apis/memberApi";
-import { useRouter } from 'expo-router';
+import { useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
-import * as SecureStore from 'expo-secure-store';
-import { loginReducer } from '../../redux/authSlice';
-import { AntDesign } from '@expo/vector-icons'; // ✅ 아이콘 사용
+import * as SecureStore from "expo-secure-store";
+import { loginReducer } from "../../redux/authSlice";
+import { AntDesign } from "@expo/vector-icons"; // ✅ 아이콘 사용
 
 const Login = () => {
   const router = useRouter();
   const dispatch = useDispatch();
+  const [modalType, setModalType] = useState("success"); // "success" | "error"
 
   const [loginData, setLoginData] = useState({
     userEmail: "",
     userPassword: "",
   });
 
-  const [modalVisible, setModalVisible] = useState(false); // ✅ 모달 상태
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalText, setModalText] = useState("");
 
   const loginData1 = (text, name) => {
     setLoginData({
@@ -29,19 +40,50 @@ const Login = () => {
     api_login(loginData)
       .then((res) => {
         const token = res.headers.authorization;
-        const user = res.data.user;
 
-        SecureStore.setItemAsync('accessToken', token)
+        if (!token) {
+          setModalType("error");
+          setModalText("이메일 또는 비밀번호를 확인해주세요.");
+          setModalVisible(true);
+          return;
+        }
+
+        // ✅ JWT 디코딩해서 user 정보 추출
+        const payload = token.split(".")[1];
+        const decodedPayload = JSON.parse(atob(payload)); // RN에서는 base-64 라이브러리 사용할 수도 있음
+        const user = {
+          userEmail: decodedPayload.sub,
+          userName: decodedPayload.userName,
+          userRole: decodedPayload.role,
+        };
+
+        // ✅ 토큰 저장
+        SecureStore.setItemAsync("accessToken", token)
           .then(() => {
-            dispatch(loginReducer({
-              token: token,
-              user: user,
-            }));
-            setModalVisible(true); // ✅ 모달 열기
+            dispatch(
+              loginReducer({
+                token: token,
+                user: user,
+              })
+            );
+
+            setModalType("success");
+            setModalText(`환영합니다`);
+            setModalVisible(true); // 성공 모달
           })
-          .catch(e => console.log("토큰 저장 오류:", e));
+          .catch((e) => {
+            console.log("토큰 저장 오류:", e);
+            setModalType("error");
+            setModalText("토큰 저장 중 오류가 발생했습니다.");
+            setModalVisible(true);
+          });
       })
-      .catch((e) => console.log("로그인 요청 실패:", e));
+      .catch((e) => {
+        console.log("로그인 요청 실패:", e);
+        setModalType("error");
+        setModalText("이메일이나 비밀번호를 다시 입력하세요!");
+        setModalVisible(true); // 실패 모달
+      });
   };
 
   return (
@@ -72,20 +114,39 @@ const Login = () => {
         </TouchableOpacity>
       </View>
 
-      {/* ✅ 로그인 성공 모달 */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalContent}>
-            <View style={styles.modalIconWrapper}>
-              <AntDesign name="checkcircleo" size={40} color="#3B82F6" />
+            <View
+              style={[
+                styles.modalIconWrapper,
+                {
+                  backgroundColor:
+                    modalType === "success" ? "#DBEAFE" : "#FECACA",
+                },
+              ]}
+            >
+              <AntDesign
+                name={modalType === "success" ? "checkcircleo" : "closecircleo"}
+                size={40}
+                color={modalType === "success" ? "#3B82F6" : "#EF4444"}
+              />
             </View>
-            <Text style={styles.modalTitle}>로그인 성공!</Text>
-            <Text style={styles.modalText}>환영합니다. </Text>
+            <Text style={styles.modalTitle}>
+              {modalType === "success" ? "로그인 성공!" : "로그인 실패"}
+            </Text>
+            <Text style={styles.modalText}>{modalText}</Text>
             <Pressable
-              style={styles.modalButton}
+              style={[
+                styles.modalButton,
+                {
+                  backgroundColor:
+                    modalType === "success" ? "#3B82F6" : "#EF4444",
+                },
+              ]}
               onPress={() => {
                 setModalVisible(false);
-                router.replace('/'); // ✅ 홈으로 이동
+                if (modalType === "success") router.replace("/");
               }}
             >
               <Text style={{ color: "#fff", fontWeight: "bold" }}>확인</Text>

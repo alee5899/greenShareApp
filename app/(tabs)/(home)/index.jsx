@@ -7,25 +7,35 @@ import {
   Image,
   Text,
   TouchableOpacity,
+  Modal,
 } from "react-native";
 import React, { useState, useCallback } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import { getPopularPosts } from "../../../apis/plantStory";
+import {
+  deleteLike,
+  getPopularPosts,
+  insertLike,
+} from "../../../apis/plantStory";
 import dayjs from "dayjs";
-
-const screenWidth = Dimensions.get("window").width;
-
-// 첫 번째 이미지를 추출하는 유틸 함수
-const extractThumbnail = (html) => {
-  const regex = /<img[^>]+src=\"([^\">]+)\"/i;
-  const match = regex.exec(html);
-  return match?.[1] ?? null;
-};
+import { AntDesign } from "@expo/vector-icons";
+import { useSelector } from "react-redux";
 
 const HomeScreen = () => {
   const router = useRouter();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const isLogin = useSelector((state) => state.auth.isLogin);
+
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const screenWidth = Dimensions.get("window").width;
+
+  const extractThumbnail = (html) => {
+    const regex = /<img[^>]+src=\"([^\">]+)\"/i;
+    const match = regex.exec(html);
+    return match?.[1] ?? null;
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -43,15 +53,43 @@ const HomeScreen = () => {
     }, [])
   );
 
-  const renderItem = ({ item }) => {
+  const toggleLike = (boardNum, index) => {
+    const updatedPosts = [...posts];
+    const post = updatedPosts[index];
+
+    if (post.isLiked) {
+      deleteLike(boardNum)
+        .then(() => {
+          post.likeCnt -= 1;
+          post.isLiked = false;
+          setPosts(updatedPosts);
+        })
+        .catch((error) => {
+          console.error("좋아요 해제 실패:", error);
+        });
+    } else {
+      insertLike(boardNum)
+        .then(() => {
+          post.likeCnt += 1;
+          post.isLiked = true;
+          setPosts(updatedPosts);
+        })
+        .catch((error) => {
+          console.error("좋아요 등록 실패:", error);
+        });
+    }
+  };
+
+  const renderItem = ({ item, index }) => {
     const thumbnail = extractThumbnail(item.content);
-    const textContent = item.content.replace(/<[^>]+>/g, "").slice(0, 60) + "...";
+    const textContent =
+      item.content.replace(/<[^>]+>/g, "").slice(0, 60) + "...";
 
     return (
-      <TouchableOpacity
-        onPress={() => router.push(`/community/${item.boardNum}`)}
-      >
-        <View style={styles.card}>
+      <View style={styles.card}>
+        <TouchableOpacity
+          onPress={() => router.push(`/community/${item.boardNum}`)}
+        >
           <View style={styles.row}>
             {thumbnail && (
               <Image source={{ uri: thumbnail }} style={styles.thumbnail} />
@@ -61,16 +99,38 @@ const HomeScreen = () => {
               <Text style={styles.preview}>{textContent}</Text>
             </View>
           </View>
+        </TouchableOpacity>
 
-          <View style={styles.metaContainer}>
-            <Text style={styles.meta}>작성자: {item.userEmail}</Text>
-            <Text style={styles.meta}>❤️ {item.likeCnt}개</Text>
-            <Text style={styles.meta}>
-              📅 {dayjs(item.regDate).format("YYYY.MM.DD")}
-            </Text>
-          </View>
+        <View style={styles.metaContainer}>
+          <Text style={styles.meta}>작성자: {item.userEmail}</Text>
+
+          {/* ✅ 좋아요 하트 */}
+          <TouchableOpacity
+            onPress={() => {
+              if (!isLogin) {
+                setShowLoginModal(true);
+                return;
+              }
+              toggleLike(item.boardNum, index);
+            }}
+          >
+            <View style={styles.likeRow}>
+              <AntDesign
+                name={item.isLiked ? "heart" : "hearto"}
+                size={16}
+                color={item.isLiked ? "red" : "#5e7b61"}
+              />
+              <Text style={[styles.meta, { marginLeft: 4 }]}>
+                {item.likeCnt}개
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.meta}>
+            📅 {dayjs(item.regDate).format("YYYY.MM.DD")}
+          </Text>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -88,6 +148,24 @@ const HomeScreen = () => {
           contentContainerStyle={styles.listCon}
         />
       )}
+      <Modal
+        transparent={true}
+        visible={showLoginModal}
+        animationType="fade"
+        onRequestClose={() => setShowLoginModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>로그인 후 이용 가능합니다!</Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowLoginModal(false)}
+            >
+              <Text style={styles.modalButtonText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -97,7 +175,7 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#edf7ef",
+    backgroundColor: "#FFFFFF",
     padding: 16,
   },
   header: {
@@ -153,5 +231,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#5e7b61",
     marginBottom: 3,
+  },
+  likeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "80%",
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 20,
+    color: "#333",
+  },
+  modalButton: {
+    backgroundColor: "#3DA66E",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 14,
   },
 });

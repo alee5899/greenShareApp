@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { View, Image, ActivityIndicator, StyleSheet } from "react-native";
+import React, { useCallback, useState } from "react";
+import { Image, ActivityIndicator } from "react-native";
 import { axiosInstance } from "../apis/axiosInstance";
 import { useFocusEffect } from "@react-navigation/native";
 
-const ProfileImageViewer = ({ userEmail }) => {
+const ProfileImageViewer = ({ userEmail, size = 60, style }) => {
   const [imageData, setImageData] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const fetchProfileImage = async () => {
     try {
       const res = await axiosInstance.get("/profiles", {
@@ -18,6 +19,7 @@ const ProfileImageViewer = ({ userEmail }) => {
       setLoading(false);
     }
   };
+
   useFocusEffect(
     useCallback(() => {
       if (userEmail) {
@@ -27,36 +29,25 @@ const ProfileImageViewer = ({ userEmail }) => {
   );
 
   if (loading) {
-    return <ActivityIndicator />;
+    return <ActivityIndicator size="small" />;
   }
 
   return (
-    <View style={styles.container}>
-      {imageData ? (
-        <Image
-          source={{ uri: `data:image/png;base64,${imageData}` }}
-          style={styles.image}
-        />
-      ) : (
-        <Image
-          source={require("../assets/images/default-profile.png")} // 기본 이미지 경로
-          style={styles.image}
-        />
-      )}
-    </View>
+    <Image
+      source={
+        imageData
+          ? { uri: `data:image/png;base64,${imageData}` }
+          : require("../assets/images/default-profile.png") // 기본 이미지 경로
+      }
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: "#E3F3E8", // 자연스러운 연한 초록 계열 (로딩 전 기본 색)
+        ...style
+      }}
+    />
   );
 };
 
 export default ProfileImageViewer;
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-  },
-  image: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#ccc",
-  },
-});

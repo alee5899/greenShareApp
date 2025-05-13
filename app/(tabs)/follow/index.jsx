@@ -7,6 +7,7 @@ import {
   Dimensions,
   Image,
   FlatList,
+  Pressable,
 } from "react-native";
 import React, { useCallback, useState } from "react";
 import * as SecureStore from "expo-secure-store"; // 토큰을 안전하게 저장하고 꺼내는 라이브러리
@@ -17,6 +18,8 @@ import FollowList from "./followList"; // 팔로우 리스트 컴포넌트
 import ProfileImageViewer from "../../../components/ProfileImageViewer.jsx"; // 프로필 이미지 표시 컴포넌트
 import ProfileButton from "../../../components/ProfileButton"; // 프로필 버튼 컴포넌트
 import CustomText from "../../../components/common/CustomText"; // 커스텀 텍스트 컴포넌트
+import { follow } from "../../../apis/memberApi.js";
+import { colors } from "../../../constants/colorConstant.js";
 
 // 화면의 너비를 가져와서 한 줄에 3개의 이미지가 들어갈 수 있도록 계산
 const screenWidth = Dimensions.get("window").width;
@@ -26,6 +29,7 @@ const SerchHomeScreen = () => {
   const [postImages, setPostImages] = useState([]); // 게시글에서 추출한 이미지 목록 저장
   const [user, setUser] = useState(null); // 로그인한 사용자 이메일
   const router = useRouter();
+  const [followList, setFollowList] = useState([]);
 
   // 토큰에서 사용자 이메일 추출
   const getUserEmailFromToken = async () => {
@@ -56,6 +60,23 @@ const SerchHomeScreen = () => {
       return null;
     }
   };
+
+  const fetchFollowList = () => {
+    follow(user)
+      .then((res) => {
+        setFollowList(res.data);
+      })
+      .catch((error) => {
+        console.log("팔로우 API 오류:", error);
+      });
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      fetchFollowList();
+    }, [user])
+  );
 
   // HTML 콘텐츠에서 <img> 태그의 src만 추출해서 배열로 반환
   const extractImages = (content) => {
@@ -93,37 +114,49 @@ const SerchHomeScreen = () => {
   return (
     <ScrollView style={styles.container}>
       {/* 팔로우 리스트 영역 */}
-      <FollowList userEmail={user} />
+      {/* <FollowList userEmail={user} /> */}
 
       {/* 프로필 이미지 + 이름 + 이메일 + 버튼 */}
       <View style={styles.proCon}>
-        <ProfileImageViewer userEmail={user} />
+        <ProfileImageViewer userEmail={user} size={100} />
 
         {/* 팔로우 리스트를 컴포넌트로 따로 빼서 버튼을 누르면 호출하도록 변경 */}
         {/* 아래는 팔로우리스트 버튼 만들 예정 */}
-        {/* <View style={styles.fontCon}>
-          <View>
-            <CustomText weight="Bold" size={22}>
-              {getUserNameFromToken()}
-            </CustomText>
-            <CustomText weight="Light" size={14} col="gray">
-              {getUserEmailFromToken()}
-            </CustomText>
-          </View>
-          <ProfileButton />
-        </View> */}
-
         <View style={styles.fontCon}>
           <View>
-            <CustomText weight="Bold" size={22}>
-              {/* 사용자 이름 비동기 호출 → UI에 바로 반영은 어려워서 별도 상태화 추천 */}
+            <CustomText weight="Bold" size={16}>
               {getUserNameFromToken()}
             </CustomText>
-            <CustomText weight="Light" size={14} col="gray">
+            <CustomText weight="Light" size={16} col="gray">
               {getUserEmailFromToken()}
             </CustomText>
           </View>
           <ProfileButton setUser={setUser} />
+        </View>
+
+        <View style={styles.fontCon}>
+          <View>
+            <CustomText weight="Bold" size={16}>
+              {/* 사용자 이름 비동기 호출 → UI에 바로 반영은 어려워서 별도 상태화 추천 */}
+              팔로잉
+            </CustomText>
+            <CustomText weight="Medium" size={16} col={colors.MAIN}>
+              {followList.length}
+            </CustomText>
+          </View>
+          <Pressable
+            style={styles.button}
+            onPress={() =>
+              router.push({
+                pathname: "/follow/followList",
+                params: { userEmail: user },
+              })
+            }
+          >
+            <CustomText weight="Bold" col="white">
+              팔로잉 보기
+            </CustomText>
+          </Pressable>
         </View>
       </View>
 
@@ -164,7 +197,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "white",
+    backgroundColor: "#FFFFFF",
   },
   title: {
     fontSize: 24,
@@ -178,14 +211,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     gap: 20,
     alignItems: "center",
-    justifyContent: "space-between",
     marginBottom: 20,
+    justifyContent: "center",
   },
   fontCon: {
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     height: 90,
-    width: 120,
-    gap: 10,
+    width: 110,
+    marginRight: 10,
   },
   grid: {
     alignItems: "center",
@@ -208,5 +241,12 @@ const styles = StyleSheet.create({
     color: "#999",
     marginTop: 40,
     fontSize: 16,
+  },
+  button: {
+    backgroundColor: colors.MAIN,
+    paddingVertical: 6,
+    borderRadius: 6,
+    width: "100%",
+    alignItems: "center",
   },
 });

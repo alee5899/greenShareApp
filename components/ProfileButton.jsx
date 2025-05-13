@@ -8,6 +8,7 @@ import { axiosInstance } from "../apis/axiosInstance";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as SecureStore from "expo-secure-store";
 import { colors } from "../constants/colorConstant";
+import CustomText from "./common/CustomText";
 
 const ProfileButton = ({ setUser }) => {
   /* 이미지 압축 함수 */
@@ -75,7 +76,10 @@ const ProfileButton = ({ setUser }) => {
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={pickAndUploadImage} style={styles.button}>
-        <Text style={styles.buttonText}>프로필 변경</Text>
+        <CustomText
+          weight="Bold"
+          col="white"
+          style={styles.buttonText}>프로필 변경</CustomText>
       </TouchableOpacity>
     </View>
   );
@@ -92,9 +96,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     width: "100%",
     alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
   },
 });

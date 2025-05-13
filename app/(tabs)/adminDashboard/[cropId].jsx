@@ -23,7 +23,7 @@ const CropDetail = () => {
 
   return (
     <ScrollView style={styles.mainCon}>
-      <CustomText>{crop.crop} </CustomText>
+      {/* <CustomText>{crop.crop} </CustomText> */}
       <Dashboard id={cropId} cropDetail={crop} />
     </ScrollView>
   );
